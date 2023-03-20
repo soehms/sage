@@ -1,0 +1,41 @@
+# This workflow synchronizes groups of labels that correspond
+# to items of selection list in Trac. It controls that in each
+# such case there is just one label of the list present.
+# Furthermore in the case of the state it checks the labels
+# to coincide with the corresponding review state.
+
+name: Synchronize selection list lables
+
+on:
+  pull_request_review:
+    types: [submitted]
+  issues:
+    types: [opened, reopened, closed, labeled, unlabeled]
+  pull_request:
+    types: [opened, reopened, closed, ready_for_review, converted_to_draft, synchronize, labeled, unlabeled]
+  pull_request_target:
+    types: [opened, reopened, closed, ready_for_review, converted_to_draft, synchronize, labeled, unlabeled]
+
+jobs:
+  synchronize:
+    runs-on: ubuntu-latest
+    steps:
+      # Checkout the Python script
+      - name: Checkout files
+        uses: Bhacaz/checkout-files@v2
+        with:
+          files: .github/sync_labels.py
+
+      # Perform synchronization
+      - name: Call script
+        run: |
+          chmod a+x .github/sync_labels.py
+          .github/sync_labels.py $ACTION $ISSUE_URL $PR_URL $ACTOR "$LABEL" "$REV_STATE"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTION: ${{ github.event.action }}
+          ISSUE_URL: ${{ github.event.issue.html_url }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          ACTOR: ${{ github.actor }}
+          LABEL: ${{ github.event.label.name }}
+          REV_STATE: ${{ github.event.review.state }}
