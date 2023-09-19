@@ -627,7 +627,7 @@ class GhLabelSynchronizer:
             sel_list = 'state'
         else:
             sel_list = 'priority'
-        self.add_warning('Label *%s* can not be removed. Please add the %s-label which should replace it' % (item.value, sel_list))
+        self.add_warning('Label *%s* can not be removed. Please add the %s label which should replace it' % (item.value, sel_list))
         self.add_label(item.value)
         return
 
@@ -715,6 +715,10 @@ class GhLabelSynchronizer:
             return
 
         item = sel_list(label)
+
+        if len(self.active_partners(item)) > 0:
+            return
+
         if sel_list is State:
             if self.is_pull_request():
                 if item != State.needs_info:
