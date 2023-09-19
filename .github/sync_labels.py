@@ -624,7 +624,7 @@ class GhLabelSynchronizer:
         a corresponding other one.
         """
         if type(item) == State:
-            sel_list = 'state'
+            sel_list = 'status'
         else:
             sel_list = 'priority'
         self.add_warning('Label *%s* can not be removed. Please add the %s label which should replace it' % (item.value, sel_list))
