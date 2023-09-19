@@ -494,7 +494,7 @@ class GhLabelSynchronizer:
             return False
 
         coms = self.get_commits()
-        authors = sum(com['authors'] for com in coms)
+        authors = [com['authors'] for com in coms]
         authors = [auth for auth in authors if not auth['login'] in (self._actor, 'github-actions')]
         if not authors:
             info('PR %s can\'t be approved by the author %s since no other person commited to it' % (self._issue, self._actor))
