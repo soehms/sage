@@ -494,8 +494,15 @@ class GhLabelSynchronizer:
             return False
 
         coms = self.get_commits()
-        authors = [com['authors']['login'] for com in coms]
-        authors = [auth for auth in authors if not auth in (self._actor, 'github-actions')]
+        authors = []
+        for com in coms:
+            for author in com['authors']:
+                login = author['login']
+                if not login in authors:
+                    if not login in (self._actor, 'github-actions')
+                        debug('PR %s has recent commit by %s' % (self._issue, login))
+                        authors.append(login)
+
         if not authors:
             info('PR %s can\'t be approved by the author %s since no other person commited to it' % (self._issue, self._actor))
             return False
