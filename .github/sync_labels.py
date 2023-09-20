@@ -499,7 +499,7 @@ class GhLabelSynchronizer:
             for author in com['authors']:
                 login = author['login']
                 if not login in authors:
-                    if not login in (self._actor, 'github-actions')
+                    if not login in (self._actor, 'github-actions'):
                         debug('PR %s has recent commit by %s' % (self._issue, login))
                         authors.append(login)
 
