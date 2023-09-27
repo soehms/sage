@@ -551,7 +551,7 @@ class GhLabelSynchronizer:
         if text:
             self.gh_cmd('review', arg, '-b \"%s\"' % text)
         else:
-            self.gh_cmd('review', arg)
+            self.gh_cmd('review', arg, '')
 
     def approve(self):
         r"""
