@@ -46,17 +46,9 @@ class RevState(Enum):
     r"""
     Enum for GitHub event ``review_state``.
     """
-    commented = 'commented'
-    approved = 'approved'
-    changes_requested = 'changes_requested'
-
-class ReviewDecision(Enum):
-    r"""
-    Enum for ``gh pr view`` results for ``reviewDecision``.
-    """
+    commented = 'COMMENTED'
     changes_requested = 'CHANGES_REQUESTED'
     approved = 'APPROVED'
-    unclear = 'UNCLEAR'
 
 class Priority(Enum):
     r"""
@@ -317,29 +309,6 @@ class GhLabelSynchronizer:
         info('Commits until %s for %s: %s' % (self._commit_date, self._issue, self._commits))
         return self._commits
 
-    def get_review_decision(self):
-        r"""
-        Return the reviewDecision of the PR.
-        """
-        if not self.is_pull_request():
-            return None
-
-        if self._review_decision is not None:
-            if self._review_decision == ReviewDecision.unclear:
-                return None
-            return self._review_decision
-
-        data = self.view('reviewDecision')
-        if data:
-            self._review_decision = ReviewDecision(data)
-        else:
-            # To separate a not supplied value from not cached (see https://github.com/sagemath/sage/pull/36177#issuecomment-1704022893 ff)
-            self._review_decision = ReviewDecision.unclear
-            info('No review decision for %s' % self._issue)
-            return None
-        info('Review decision for %s: %s' % (self._issue, self._review_decision.value))
-        return self._review_decision
-
     def get_reviews(self, complete=False):
         r"""
         Return the list of reviews of the PR. Per default only those proper reviews
@@ -365,6 +334,23 @@ class GhLabelSynchronizer:
         proper_new_revs = [rev for rev in new_revs if rev['state'] != unproper_rev]
         info('Proper reviews after %s for %s: %s' % (date, self._issue, proper_new_revs))
         return proper_new_revs
+
+    def get_latest_review(self):
+        r"""
+        Return the latest proper review of the PR.
+        """
+        revs = self.get_reviews()
+        if not revs:
+            return
+        res = revs[0]
+        max_date = res['submittedAt']
+        for rev in revs:
+            cur_date = rev['submittedAt']
+            if cur_date > max_date:
+                max_date = cur_date
+                res = rev
+        info('PR %s had latest proper review at %s: %s' % (self._issue, max_date, res))
+        return res
 
     def active_partners(self, item):
         r"""
@@ -395,29 +381,24 @@ class GhLabelSynchronizer:
                         return stat
         return None
 
-    def needs_work_valid(self):
+    def check_review_decision(self, rev_decision):
         r"""
-        Return ``True`` if the PR needs work. This is the case if
-        there are reviews more recent than any commit and the review
-        decision requests changes or if there is any review reqesting
-        changes.
+        Return ``True`` if the latest proper review of the PR has the
+        given decision.
         """
-        revs = self.get_reviews()
-        if not revs:
+        rev = self.get_latest_review()
+        if not rev:
             # no proper review since most recent commit.
             return False
 
-        ch_req = ReviewDecision.changes_requested
-        rev_dec =  self.get_review_decision()
-        if rev_dec:
-            if rev_dec == ch_req:
-               info('PR %s needs work (by decision)' % self._issue)
-               return True
-            else:
-               info('PR %s doesn\'t need work (by decision)' % self._issue)
-               return False
+        return rev['state'] == rev_decision.value
 
-        if any(rev['state'] == ch_req.value for rev in revs):
+    def needs_work_valid(self):
+        r"""
+        Return ``True`` if the PR needs work. This is the case if
+        latest proper review request changes.
+        """
+        if self.check_review_decision(RevState.changes_requested):
             info('PR %s needs work' % self._issue)
             return True
         info('PR %s doesn\'t need work' % self._issue)
@@ -425,27 +406,10 @@ class GhLabelSynchronizer:
 
     def positive_review_valid(self):
         r"""
-        Return ``True`` if the PR has positive review. This is the
-        case if there are reviews more recent than any commit and the
-        review decision is approved or if there is any approved review
-        but no changes requesting one.
+        Return ``True`` if the PR is positively reviewed. This is the case if
+        latest proper review is approved.
         """
-        revs = self.get_reviews()
-        if not revs:
-            # no proper review since most recent commit.
-            return False
-
-        appr = ReviewDecision.approved
-        rev_dec =  self.get_review_decision()
-        if rev_dec:
-            if rev_dec == appr:
-                info('PR %s has positve review (by decision)' % self._issue)
-                return True
-            else:
-                info('PR %s doesn\'t have positve review (by decision)' % self._issue)
-                return False
-
-        if all(rev['state'] == appr.value for rev in revs):
+        if self.check_review_decision(RevState.approved):
             info('PR %s has positve review' % self._issue)
             return True
         info('PR %s doesn\'t have positve review' % self._issue)
@@ -476,7 +440,7 @@ class GhLabelSynchronizer:
         """
         revs = self.get_reviews()
         revs = [rev for rev in revs if rev['author']['login'] != self._actor]
-        ch_req = ReviewDecision.changes_requested
+        ch_req = RevState.changes_requested
         if any(rev['state'] == ch_req.value for rev in revs):
             info('PR %s can\'t be approved by %s since others reqest changes' % (self._issue, self._actor))
             return False
