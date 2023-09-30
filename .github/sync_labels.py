@@ -795,7 +795,7 @@ class GhLabelSynchronizer:
             self.select_label(State.needs_review)
 
         if action is Action.submitted:
-            rev_state = RevState(rev_state)
+            rev_state = RevState(rev_state.upper())
             if rev_state is RevState.approved:
                 if self.actor_authorized() and self.positive_review_valid():
                     self.select_label(State.positive_review)
