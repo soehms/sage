@@ -555,7 +555,10 @@ class GhLabelSynchronizer:
         issue = 'issue'
         if self._pr:
             issue = 'pr'
-        cmd_str = 'gh %s %s %s %s "%s"' % (issue, cmd, self._url, option, arg)
+        if arg:
+            cmd_str = 'gh %s %s %s %s "%s"' % (issue, cmd, self._url, option, arg)
+        else:
+            cmd_str = 'gh %s %s %s %s' % (issue, cmd, self._url, option)
         debug('Execute command: %s' % cmd_str)
         ex_code = os.system(cmd_str)
         if ex_code:
