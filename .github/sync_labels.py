@@ -25,6 +25,7 @@ from datetime import datetime, timedelta
 from subprocess import check_output, CalledProcessError
 
 datetime_format = '%Y-%m-%dT%H:%M:%SZ'
+default_bot = 'github-actions'
 
 
 class Action(Enum):
@@ -41,6 +42,26 @@ class Action(Enum):
     review_requested = 'review_requested'
     converted_to_draft = 'converted_to_draft'
     submitted = 'submitted'
+
+class AuthorAssociation(Enum):
+    r"""
+    Enum for GitHub ``authorAssociation``.
+    """
+    def is_valid(self):
+        r"""
+        Return whether ``self`` has valid permissions.
+        """
+        c = self.__class__
+        return self in [c.collaborator, c.member, c.owner]
+
+    collaborator = 'COLLABORATOR' # Author has been invited to collaborate on the repository.
+    contributor = 'CONTRIBUTOR' # Author has previously committed to the repository.
+    first_timer = 'FIRST_TIMER' # Author has not previously committed to GitHub.
+    first_time_contributor = 'FIRST_TIME_CONTRIBUTOR' # Author has not previously committed to the repository.
+    mannequin = 'MANNEQUIN' # Author is a placeholder for an unclaimed user.
+    member = 'MEMBER' # Author is a member of the organization that owns the repository.
+    none = 'NONE' # Author has no association with the repository.
+    owner = 'OWNER' # Author is the owner of the repository.
 
 class RevState(Enum):
     r"""
@@ -109,6 +130,7 @@ class GhLabelSynchronizer:
         self._reviews = None
         self._commits = None
         self._commit_date = None
+        self._bot_login = None
 
         number = os.path.basename(url)
         self._pr = True
@@ -117,6 +139,7 @@ class GhLabelSynchronizer:
             self._issue = 'issue #%s' % number
             self._pr = False
         info('Create label handler for %s and actor %s' % (self._issue, self._actor))
+        self.bot_login()
         self.clean_warnings()
 
     # -------------------------------------------------------------------------
@@ -191,6 +214,30 @@ class GhLabelSynchronizer:
         info('Issue %s is draft %s' % (self._issue, self._draft))
         return self._draft
 
+    def bot_login(self):
+        r"""
+        Return the login name of the bot.
+        """
+        if self._bot_login:
+            return self._bot_login
+        cmd = 'gh auth status'
+        from subprocess import run
+        capt = run(cmd, shell=True, capture_output=True)
+        l = str(capt.stderr).split()
+        if not 'as' in l:
+            l = str(capt.stdout).split()
+        self._bot_login = l[l.index('as')+1]
+        if self._bot_login.endswith('[bot]'):
+            self._bot_login = self._bot_login.split('[bot]')[0]
+        info('Bot is %s' % self._bot_login)
+        return self._bot_login
+
+    def is_this_bot(self, login):
+        r"""
+        Check whether login is the bot itself.
+        """
+        return login.startswith(self.bot_login())
+
     def is_auth_team_member(self, login):
         r"""
         Return ``True`` if the user with given login belongs to an authorized
@@ -217,9 +264,24 @@ class GhLabelSynchronizer:
 
     def actor_authorized(self):
         r"""
-        Return ``True`` if the actor belongs to an authorized team.
+        Return ``True`` if the actor has sufficient permissions.
         """
-        return self.is_auth_team_member(self._actor)
+        if self.is_this_bot(default_bot):
+            # since the default bot is not a member of the SageMath
+            # organization it cannot test membership for private members.
+            # Therefore, we check here for public organization membership.
+            rev = self.get_latest_review()
+            if not rev:
+                return False
+
+            if rev['author']['login'] == self._actor:
+                ass = rev['authorAssociation']
+                info('Actor %s has association %s' % (self._actor, ass))
+                return AuthorAssociation(ass).is_valid()
+            info('Actor %s did not create latest review' % self._actor)
+            return False
+        else:
+            return self.is_auth_team_member(self._actor)
 
     def clean_warnings(self):
         r"""
@@ -253,8 +315,8 @@ class GhLabelSynchronizer:
             comment_id = c['id']
             issue = c['issue_url'].split('/').pop()
             created_at = c['created_at']
-            if login.startswith('github-actions'):
-                debug('github-actions comment %s created at %s on issue %s found' % (comment_id, created_at, issue))
+            if self.is_this_bot(login):
+                debug('%s comment %s created at %s on issue %s found' % (self.bot_login(), comment_id, created_at, issue))
                 prefix = None
                 if body.startswith(self._warning_prefix):
                     prefix = self._warning_prefix
@@ -263,7 +325,7 @@ class GhLabelSynchronizer:
                 if prefix:
                     created = datetime.strptime(created_at, datetime_format)
                     lifetime = today - created
-                    debug('github-actions %s %s is %s old' % (prefix, comment_id, lifetime))
+                    debug('%s %s %s is %s old' % (self.bot_login(), prefix, comment_id, lifetime))
                     if lifetime > warning_lifetime:
                         try:
                             self.rest_api('%s/%s' % (path_args, comment_id), method='DELETE')
@@ -335,11 +397,13 @@ class GhLabelSynchronizer:
         info('Proper reviews after %s for %s: %s' % (date, self._issue, proper_new_revs))
         return proper_new_revs
 
-    def get_latest_review(self):
+    def get_latest_review(self, complete=False):
         r"""
-        Return the latest proper review of the PR.
+        Return the latest review of the PR. Per default only those proper reviews
+        are considered which have been submitted after the most recent commit. Use
+        keyword ``complete`` to get the latest of all.
         """
-        revs = self.get_reviews()
+        revs = self.get_reviews(complete=complete)
         if not revs:
             return
         res = revs[0]
@@ -349,7 +413,10 @@ class GhLabelSynchronizer:
             if cur_date > max_date:
                 max_date = cur_date
                 res = rev
-        info('PR %s had latest proper review at %s: %s' % (self._issue, max_date, res))
+        fill_in = ''
+        if not complete:
+            fill_in = ' proper'
+        info('PR %s had latest%s review at %s: %s' % (self._issue, fill_in, max_date, res))
         return res
 
     def active_partners(self, item):
@@ -370,16 +437,14 @@ class GhLabelSynchronizer:
         Return a State label if the most recent review comment
         starts with its value.
         """
-        revs = self.get_reviews(complete=True)
-        date = max(rev['submittedAt'] for rev in revs)
-
-        for rev in revs:
-            if rev['submittedAt'] == date:
-                for stat in State:
-                    body = rev['body']
-                    if body.startswith(stat.value):
-                        return stat
-        return None
+        rev = self.get_latest_review(complete=True)
+        ass = AuthorAssociation(rev['authorAssociation'])
+        for stat in State:
+            body = rev['body']
+            if body.startswith(stat.value):
+                info('Latest review comment contains status label %s' % stat)
+                return stat, ass
+        return None, ass
 
     def check_review_decision(self, rev_decision):
         r"""
@@ -396,7 +461,7 @@ class GhLabelSynchronizer:
     def needs_work_valid(self):
         r"""
         Return ``True`` if the PR needs work. This is the case if
-        latest proper review request changes.
+        the latest proper review request changes.
         """
         if self.check_review_decision(RevState.changes_requested):
             info('PR %s needs work' % self._issue)
@@ -407,7 +472,7 @@ class GhLabelSynchronizer:
     def positive_review_valid(self):
         r"""
         Return ``True`` if the PR is positively reviewed. This is the case if
-        latest proper review is approved.
+        the latest proper review is approved.
         """
         if self.check_review_decision(RevState.approved):
             info('PR %s has positve review' % self._issue)
@@ -458,7 +523,7 @@ class GhLabelSynchronizer:
             return True
 
         revs = self.get_reviews()
-        revs = [rev for rev in revs if rev['author']['login'] != 'github-actions']
+        revs = [rev for rev in revs if not self.is_this_bot(rev['author']['login'])]
         if not revs:
             info('PR %s can\'t be approved by the author %s since no other person reviewed it' % (self._issue, self._actor))
             return False
@@ -466,10 +531,10 @@ class GhLabelSynchronizer:
         coms = self.get_commits()
         authors = []
         for com in coms:
-            for author in com['authors']:
-                login = author['login']
+            for auth in com['authors']:
+                login = auth['login']
                 if not login in authors:
-                    if not login in (self._actor, 'github-actions'):
+                    if not self.is_this_bot(login) and login != author:
                         debug('PR %s has recent commit by %s' % (self._issue, login))
                         authors.append(login)
 
@@ -477,7 +542,7 @@ class GhLabelSynchronizer:
             info('PR %s can\'t be approved by the author %s since no other person commited to it' % (self._issue, self._actor))
             return False
 
-        info('PR %s can be approved by the author %s as co-author' % (self._issue, self._actor))
+        info('PR %s can be approved by the author %s as co-author' % (self._issue, author))
         return True
 
     # -------------------------------------------------------------------------
@@ -720,10 +785,20 @@ class GhLabelSynchronizer:
         have permission to add labels (i.e. aren't a member of the
         Triage team).
         """
-        rev_state = self.review_comment_to_state()
-        if rev_state in (State.needs_info, State.needs_review):
-            self.select_label(rev_state)
-            self.run(Action.labeled, label=rev_state.value)
+        rev_state, ass = self.review_comment_to_state()
+        if ass is AuthorAssociation.owner:
+            if rev_state is State.positive_review:
+                # allow the repository owner to approve his own PR for testing
+                # the bot
+                info('Owner approves PR %s for testing the bot' % self._issue)
+                self.approve()
+        elif ass.is_valid() or ass is Author.Assoziation.contributor:
+            if rev_state in (State.needs_info, State.needs_review):
+                # allow contributors who are not Triage members to set
+                # these labels
+                info('Simulate label addition of %s for %s' % (label, self._issue))
+                self.select_label(rev_state)
+                self.run(Action.labeled, label=rev_state.value)
             
     def remove_all_labels_of_sel_list(self, sel_list):
         r"""
