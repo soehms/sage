@@ -816,6 +816,10 @@ class GhLabelSynchronizer:
         """
         self.reset_view() # this is just needed for run_tests
 
+        if self.is_this_bot(self._actor):
+            info('Trigger %s of the bot %s is ignored' % (action, self._actor))
+            return
+
         if action is Action.opened and self.is_pull_request():
             if not self.is_draft():
                 self.add_default_label(State.needs_review)
