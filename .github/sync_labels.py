@@ -446,7 +446,7 @@ class GhLabelSynchronizer:
                 return stat, ass
         return None, ass
 
-    def check_review_decision(self, rev_decision):
+    def check_review_decision(self, rev_decision, ignore_actor=False):
         r"""
         Return ``True`` if the latest proper review of the PR has the
         given decision.
@@ -456,25 +456,37 @@ class GhLabelSynchronizer:
             # no proper review since most recent commit.
             return False
 
+        if ignore_actor:
+            # Allow the actor to revert his decision
+            auth = rev['author']['login']
+            if self._actor == auth:
+                debug('Ignore actor\'s review %s' % rev['id'])
+                return False
+
+            if self.is_this_bot(auth):
+                if rev['body'].find(self._actor) > 0:
+                    debug('Ignore %s\'s review %s' % (auth, rev['id']))
+                    return False
+
         return rev['state'] == rev_decision.value
 
-    def needs_work_valid(self):
+    def needs_work_valid(self, ignore_actor=False):
         r"""
         Return ``True`` if the PR needs work. This is the case if
         the latest proper review request changes.
         """
-        if self.check_review_decision(RevState.changes_requested):
+        if self.check_review_decision(RevState.changes_requested, ignore_actor=ignore_actor):
             info('PR %s needs work' % self._issue)
             return True
         info('PR %s doesn\'t need work' % self._issue)
         return False
 
-    def positive_review_valid(self):
+    def positive_review_valid(self, ignore_actor=False):
         r"""
         Return ``True`` if the PR is positively reviewed. This is the case if
         the latest proper review is approved.
         """
-        if self.check_review_decision(RevState.approved):
+        if self.check_review_decision(RevState.approved, ignore_actor=ignore_actor):
             info('PR %s has positve review' % self._issue)
             return True
         info('PR %s doesn\'t have positve review' % self._issue)
@@ -488,11 +500,11 @@ class GhLabelSynchronizer:
         if self.is_draft():
             return False
 
-        if self.needs_work_valid():
+        if self.needs_work_valid(ignore_actor=True):
             info('PR %s already under review (needs work)' % self._issue)
             return False
 
-        if self.positive_review_valid():
+        if self.positive_review_valid(ignore_actor=True):
             info('PR %s already reviewed' % self._issue)
             return False
 
