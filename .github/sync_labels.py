@@ -549,7 +549,7 @@ class GhLabelSynchronizer:
         Return if the actor has permission to approve this PR.
         """
         revs = self.get_reviews()
-        revs = [rev for rev in revs if not self.review_by_actor(rev)]
+        revs = [rev for rev in revs if not self.review_by_actor()]
         ch_req = RevState.changes_requested
         if any(rev['state'] == ch_req.value for rev in revs):
             info('PR %s can\'t be approved by %s since others reqest changes' % (self._issue, self._actor))
