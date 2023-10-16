@@ -137,6 +137,7 @@ class GhLabelSynchronizer:
         self._review_decision = None
         self._reviews = None
         self._reviews_from_rest_api = None
+        self._review_requests = None
         self._commits = None
         self._commit_date = None
         self._bot_login = None
@@ -391,6 +392,19 @@ class GhLabelSynchronizer:
         self._commit_date = max( com['committedDate'] for com in self._commits )
         info('Commits until %s for %s: %s' % (self._commit_date, self._issue, self._commits))
         return self._commits
+
+    def get_review_requests(self):
+        r"""
+        Return the list of review request of the PR.
+        """
+        if not self.is_pull_request():
+            return None
+
+        if self._review_requests is None:
+            self._review_requests = self.view('reviewRequests')
+            debug('Review requests for %s: %s' % (self._issue, self._review_requests))
+
+        return self._review_requests
 
     def get_reviews(self, complete=False):
         r"""
@@ -940,7 +954,10 @@ class GhLabelSynchronizer:
             rev_state = RevState(rev_state.upper())
             if rev_state is RevState.approved:
                 self.dismiss_bot_reviews('because @%s approved' % self._actor, state=RevState.changes_requested, actor=self._actor)
-                if self.actor_authorized() and self.positive_review_valid():
+                rev_req = self.get_review_requests()
+                if rev_req:
+                    info('Waiting on pending review requests: %s' % rev_req)
+                elif self.actor_authorized() and self.positive_review_valid():
                     self.select_label(State.positive_review)
 
             if rev_state is RevState.changes_requested:
