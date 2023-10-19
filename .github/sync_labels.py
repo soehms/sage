@@ -763,7 +763,7 @@ class GhLabelSynchronizer:
         it again.
         """
         if item is Status.positive_review:
-            self.add_warning('Label *%s* cannot be added by the author of the PR' % item.value)
+            self.add_warning('Label *%s* cannot be added by the author of the PR.' % item.value)
             self.remove_label(item.value)
         return
 
@@ -772,11 +772,11 @@ class GhLabelSynchronizer:
         Post a comment that the given label my be incorrect.
         """
         if not self.is_pull_request():
-            self.add_warning('Label *%s* is not suitable for an issue. Please use it on the corresponding PR' % item.value)
+            self.add_warning('Label *%s* is not suitable for an issue. Please use it on the corresponding PR.' % item.value)
         elif item is Status.needs_review:
-            self.add_warning('Label *%s* may be incorrect, since there are unresolved reviews' % item.value)
+            self.add_warning('Label *%s* may be incorrect, since there are unresolved reviews.' % item.value)
         else:
-            self.add_warning('Label *%s* does not match the state of GitHub\'s review system' % item.value)
+            self.add_warning('Label *%s* does not match the state of GitHub\'s review system.' % item.value)
         return
 
     def hint_about_label_removal(self, item):
@@ -787,7 +787,7 @@ class GhLabelSynchronizer:
             sel_list = 'status'
         else:
             sel_list = 'priority'
-        self.add_hint('You don\'t need to remove %s labels any more. You\'d better just add the label which replaces it' % sel_list)
+        self.add_hint('You don\'t need to remove %s labels any more. You\'d better just add the label which replaces it.' % sel_list)
         return
 
     # -------------------------------------------------------------------------
