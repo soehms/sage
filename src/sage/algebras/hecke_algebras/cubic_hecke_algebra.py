@@ -3543,5 +3543,18 @@ class CubicHeckeAlgebra(CombinatorialFreeModule):
     def test_size_labele(self):
         r"""
         This just is for testing purpose.
+        some lines more:
+        line
+        line
+        line
+        line
+        line
+        line
+        line
+        line
+        line
+        line
+        line
+        line
         """
         return self
