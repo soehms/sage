@@ -3539,3 +3539,9 @@ class CubicHeckeAlgebra(CombinatorialFreeModule):
             return char_function
         irrs = [irr for irr in self.irred_repr if irr.number_gens() == self._nstrands - 1]
         return [self.characters(irrs[i], original=original) for i in range(len(irrs))]
+
+    def test_size_labele(self):
+        r"""
+        This just is for testing purpose.
+        """
+        return self
