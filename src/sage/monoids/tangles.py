@@ -140,7 +140,7 @@ class KauffmanTangle(ElementWrapper):
         OUTPUT:
 
         A pair ``(bd, num_removed_loops)`` of an instance of
-        :class:`~sage.algebras.diagram_algebras.BrauerDiagram` ``bd`` and an
+        :class:`~sage.combinat.diagram_algebras.BrauerDiagram` ``bd`` and an
         integer ``num_removed_loops`` giving the number of closed loops in ``self``.
 
         EXAMPLES::
@@ -566,11 +566,11 @@ class KauffmanTangle(ElementWrapper):
         - ``color`` -- (default: ``'rainbow'``) the color of the
           strands; possible values are:
 
-          * ``'rainbow'``, uses :meth:`~sage.plot.colors.rainbow`
+          * ``'rainbow'``, uses :func:`~sage.plot.colors.rainbow`
             according to the number of strands.
 
-          * a valid color name for :meth:`~sage.plot.bezier_path`
-            and :meth:`~sage.plot.line`. Used for all strands.
+          * a valid color name for :func:`~sage.plot.bezier_path.bezier_path`
+            and :func:`~sage.plot.line`. Used for all strands.
 
           * a list or a tuple of colors for each individual strand.
 
@@ -594,7 +594,7 @@ class KauffmanTangle(ElementWrapper):
           ``1``); the aspect ratio
 
         - ``**kwds`` -- other keyword options that are passed to
-          :meth:`~sage.plot.bezier_path` and :meth:`~sage.plot.line`
+          :func:`~sage.plot.bezier_path.bezier_path` and :func:`~sage.plot.line`
 
         EXAMPLES::
 
@@ -1980,10 +1980,10 @@ class _CapCupGenPlot(_GeneratorPlot):
 
     INPUT:
 
-    - ``col_top`` -- a valid color name for :meth:`~sage.plot.bezier_path`
-      and :meth:`~sage.plot.line` used for the top line strand
-    - ``col_bottom`` -- a valid color name for :meth:`~sage.plot.bezier_path`
-      and :meth:`~sage.plot.line` used for the bottom line strand
+    - ``col_top`` -- a valid color name for :func:`~sage.plot.bezier_path.bezier_path`
+      and :func:`~sage.plot.line` used for the top line strand
+    - ``col_bottom`` -- a valid color name for :func:`~sage.plot.bezier_path.bezier_path`
+      and :func:`~sage.plot.line` used for the bottom line strand
     - ``pos`` -- see :class:`GeneratorPlot`
     - ``rotation`` -- integer, giving the rotation as a factor of ``pi/2``
     """
@@ -2040,10 +2040,10 @@ class _BraidGenPlot(_GeneratorPlot):
 
     INPUT:
 
-    - ``col_over`` -- a valid color name for :meth:`~sage.plot.bezier_path`
-      and :meth:`~sage.plot.line` used for the over-crossing strand
-    - ``col_under`` -- a valid color name for :meth:`~sage.plot.bezier_path`
-      and :meth:`~sage.plot.line` used for the under-crosing strand
+    - ``col_over`` -- a valid color name for :func:`~sage.plot.bezier_path.bezier_path`
+      and :func:`~sage.plot.line` used for the over-crossing strand
+    - ``col_under`` -- a valid color name for :func:`~sage.plot.bezier_path.bezier_path`
+      and :func:`~sage.plot.line` used for the under-crosing strand
     - ``positive`` -- boolean whether to plot a positive or negative crossing
     - ``gap`` -- floating point number (default: 0.05); see the description
       in :meth:`plot`
@@ -2107,8 +2107,8 @@ class _LinePlot(_GeneratorPlot):
 
     INPUT:
 
-    - ``col`` -- a valid color name for :meth:`~sage.plot.bezier_path`
-      and :meth:`~sage.plot.line` used for the straight strand
+    - ``col`` -- a valid color name for :func:`~sage.plot.bezier_path.bezier_path`
+      and :func:`~sage.plot.line` used for the straight strand
     - ``pos`` -- see :class:`_GeneratorPlot`
     - ``rotation`` -- integer, giving the rotation as a factor of ``pi/2``
     """
