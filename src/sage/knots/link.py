@@ -4094,7 +4094,7 @@ class Link(SageObject):
 
             sage: # needs sage.plot
             sage: L = Link([[3, 8, 4, 1], [1, 7, 2, 6], [7, 4, 8, 5], [5, 3, 6, 2]])
-            sage: L.plot(solver='GLPK')
+            sage: L.plot()
             Graphics object consisting of ... graphics primitives
             sage: L.plot(solver='Coin')    # optional - sage_numerical_backends_coin
             Graphics object consisting of ... graphics primitives
